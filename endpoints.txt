@@ -1,0 +1,11 @@
+http://localhost:3000/
+http://localhost:3000/receitas/nome/:nome
+http://localhost:3000/receitas/id/:id
+http://localhost:3000/receitas/ingrediente/:ingrediente
+http://localhost:3000/receitas
+
+Rodar API:
+node index.js
+
+Adicionar nova receita via node.js:
+node popularReceitas.js
