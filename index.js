@@ -1,14 +1,142 @@
 const express = require("express");
 const cors = require("cors");
-const db = require("./db"); // seu arquivo de conexão SQLite
+const db = require("./db"); // sua conexão sqlite (db.js)
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-// Endpoint raiz
 app.get("/", (req, res) => {
   res.send("API de Receitas Culinárias - by Davi 🍲");
+});
+
+/**
+ * GET /receitas
+ * - Se sem query params: retorna todas as receitas
+ * - Aceita query params:
+ *    nome: string (busca por LIKE %nome%)
+ *    ingredientes: lista separada por vírgula (ex: ingredientes=ovo,farinha)
+ *
+ * Ex: GET /receitas?nome=bolo&ingredientes=ovo,farinha
+ */
+app.get("/receitas", (req, res) => {
+  const { nome, ingredientes } = req.query;
+
+  db.all("SELECT * FROM receitas", [], (err, rows) => {
+    if (err) {
+      console.error("Erro ao buscar receitas:", err);
+      return res.status(500).json({ erro: err.message });
+    }
+
+    // parse das receitas e aplicação de filtros
+    const parsed = rows.map((r) => {
+      let ingredientesArr = [];
+      try {
+        ingredientesArr = r.ingredientes ? JSON.parse(r.ingredientes) : [];
+      } catch (e) {
+        ingredientesArr = [];
+      }
+      return {
+        id: r.id,
+        nome: r.nome,
+        imagem: r.imagem,
+        modo_preparo: r.modo_preparo,
+        ingredientes: ingredientesArr,
+      };
+    });
+
+    // aplicar filtro por nome (se presente)
+    let filtered = parsed;
+    if (typeof nome === "string" && nome.trim() !== "") {
+      const q = nome.trim().toLowerCase();
+      filtered = filtered.filter((r) => (r.nome || "").toLowerCase().includes(q));
+    }
+
+    // aplicar filtro por ingredientes (se presente) — AND: todos os termos devem existir
+    // ingredientes query pode ser "ovo,farinha" ou "ovo" (string). suportamos array também se for form-data.
+    if (ingredientes) {
+      // normalizar entrada em array de termos
+      let terms = [];
+      if (Array.isArray(ingredientes)) {
+        // ?ingredientes=a&ingredientes=b  (unlikely but handle)
+        terms = ingredientes.flatMap((t) => String(t).split(","));
+      } else {
+        terms = String(ingredientes).split(",");
+      }
+      terms = terms.map((t) => t.trim().toLowerCase()).filter(Boolean);
+
+      if (terms.length) {
+        filtered = filtered.filter((r) => {
+          // lowercased ingredient strings from recipe
+          const lowerIngredients = (r.ingredientes || []).map((ing) =>
+            String(ing?.ingrediente || "").toLowerCase()
+          );
+          // todos os termos devem ser substrings de pelo menos um ingrediente
+          return terms.every((term) =>
+            lowerIngredients.some((li) => li.includes(term))
+          );
+        });
+      }
+    }
+
+    // Retornamos 200 com array (vazio se nada encontrado)
+    return res.json(filtered);
+  });
+});
+
+/**
+ * POST /receitas/search
+ * body: { nome?: string, ingredientes?: string[] }
+ * Alternativa para queries longas / arrays via body.
+ */
+app.post("/receitas/search", (req, res) => {
+  const { nome, ingredientes } = req.body;
+
+  db.all("SELECT * FROM receitas", [], (err, rows) => {
+    if (err) {
+      console.error("Erro ao buscar receitas (search):", err);
+      return res.status(500).json({ erro: err.message });
+    }
+
+    const parsed = rows.map((r) => {
+      let ingredientesArr = [];
+      try {
+        ingredientesArr = r.ingredientes ? JSON.parse(r.ingredientes) : [];
+      } catch (e) {
+        ingredientesArr = [];
+      }
+      return {
+        id: r.id,
+        nome: r.nome,
+        imagem: r.imagem,
+        modo_preparo: r.modo_preparo,
+        ingredientes: ingredientesArr,
+      };
+    });
+
+    let filtered = parsed;
+
+    if (typeof nome === "string" && nome.trim() !== "") {
+      const q = nome.trim().toLowerCase();
+      filtered = filtered.filter((r) => (r.nome || "").toLowerCase().includes(q));
+    }
+
+    if (Array.isArray(ingredientes) && ingredientes.length) {
+      const terms = ingredientes.map((t) => String(t).trim().toLowerCase()).filter(Boolean);
+      if (terms.length) {
+        filtered = filtered.filter((r) => {
+          const lowerIngredients = (r.ingredientes || []).map((ing) =>
+            String(ing?.ingrediente || "").toLowerCase()
+          );
+          return terms.every((term) =>
+            lowerIngredients.some((li) => li.includes(term))
+          );
+        });
+      }
+    }
+
+    return res.json(filtered);
+  });
 });
 
 // Buscar receitas por NOME
