@@ -234,6 +234,25 @@ app.post("/receitas", (req, res) => {
   );
 });
 
+app.delete("/receitas/:id", (req, res) => {
+  const { id } = req.params;
+
+  db.run("DELETE FROM receitas WHERE id = ?", [id], function (err) {
+    if (err) {
+      console.error("Erro ao deletar receita:", err);
+      return res.status(500).json({ erro: err.message });
+    }
+
+    if (this.changes === 0) {
+      return res
+        .status(404)
+        .json({ mensagem: "Receita não encontrada para exclusão" });
+    }
+
+    res.json({ mensagem: "Receita deletada com sucesso!" });
+  });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 API rodando na porta ${PORT}`);
