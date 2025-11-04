@@ -311,7 +311,62 @@ app.delete("/receitas/:id", (req, res) => {
   });
 });
 
+app.put("/receitas/:id", (req, res) => {
+  const { id } = req.params;
+  const { nome, imagem, modo_preparo, ingredientes } = req.body;
+
+  if (!nome || !ingredientes) {
+    return res.status(400).json({ mensagem: "Nome e ingredientes são obrigatórios" });
+  }
+
+  // garante que ingredientes seja um array serializável
+  let ingredientesJson = "[]";
+  try {
+    ingredientesJson = JSON.stringify(ingredientes);
+  } catch (e) {
+    return res.status(400).json({ mensagem: "Ingredientes inválidos" });
+  }
+
+  const sql =
+    "UPDATE receitas SET nome = ?, imagem = ?, modo_preparo = ?, ingredientes = ? WHERE id = ?";
+
+  db.run(sql, [nome, imagem || "", modo_preparo || "", ingredientesJson, id], function (err) {
+    if (err) {
+      console.error("Erro ao atualizar receita:", err);
+      return res.status(500).json({ erro: err.message });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({ mensagem: "Receita não encontrada" });
+    }
+
+    // buscar e retornar a receita atualizada
+    db.get("SELECT * FROM receitas WHERE id = ?", [id], (err2, row) => {
+      if (err2) return res.status(500).json({ erro: err2.message });
+      if (!row) return res.status(404).json({ mensagem: "Receita não encontrada" });
+
+      let ingredientesArr = [];
+      try {
+        ingredientesArr = row.ingredientes ? JSON.parse(row.ingredientes) : [];
+      } catch (e) {
+        ingredientesArr = [];
+      }
+
+      const receita = {
+        id: row.id,
+        nome: row.nome,
+        imagem: row.imagem,
+        modo_preparo: row.modo_preparo,
+        ingredientes: ingredientesArr,
+      };
+
+      return res.json(receita);
+    });
+  });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 API rodando na porta ${PORT}`);
 });
+
