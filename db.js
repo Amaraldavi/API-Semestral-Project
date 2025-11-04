@@ -13,8 +13,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// Cria tabela (se não existir)
+// Cria tabelas (se não existirem)
 db.serialize(() => {
+  // Tabela original de receitas (sem alterações)
   db.run(`
     CREATE TABLE IF NOT EXISTS receitas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,6 +23,16 @@ db.serialize(() => {
       imagem TEXT,
       modo_preparo TEXT,
       ingredientes TEXT
+    )
+  `);
+
+  // 🔹 Nova tabela de usuários (para login e cadastro)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      senha TEXT NOT NULL
     )
   `);
 });

@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const bcrypt = require("bcryptjs"); // 🔹 para criptografar senhas
 const db = require("./db"); // sua conexão sqlite (db.js)
 const app = express();
 
@@ -10,15 +11,82 @@ app.get("/", (req, res) => {
   res.send("API de Receitas Culinárias - by Davi 🍲");
 });
 
-/**
- * GET /receitas
- * - Se sem query params: retorna todas as receitas
- * - Aceita query params:
- *    nome: string (busca por LIKE %nome%)
- *    ingredientes: lista separada por vírgula (ex: ingredientes=ovo,farinha)
- *
- * Ex: GET /receitas?nome=bolo&ingredientes=ovo,farinha
- */
+// 🔹===================== AUTENTICAÇÃO =====================
+
+// Cadastro de usuário
+app.post("/register", (req, res) => {
+  const { nome, email, senha } = req.body;
+
+  if (!nome || !email || !senha) {
+    return res.status(400).json({ error: "Preencha todos os campos." });
+  }
+
+  // Criptografar a senha
+  const senhaCriptografada = bcrypt.hashSync(senha, 10);
+
+  const sql = `INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)`;
+  db.run(sql, [nome, email, senhaCriptografada], function (err) {
+    if (err) {
+      if (err.message.includes("UNIQUE")) {
+        return res.status(400).json({ error: "E-mail já cadastrado." });
+      }
+      return res.status(500).json({ error: err.message });
+    }
+    res
+      .status(201)
+      .json({ message: "Usuário cadastrado com sucesso!", id: this.lastID });
+  });
+});
+
+// Login de usuário
+app.post("/login", (req, res) => {
+  const { email, senha } = req.body;
+
+  if (!email || !senha) {
+    return res.status(400).json({ error: "Preencha e-mail e senha." });
+  }
+
+  const sql = `SELECT * FROM usuarios WHERE email = ?`;
+  db.get(sql, [email], (err, usuario) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!usuario)
+      return res.status(401).json({ error: "Usuário não encontrado." });
+
+    const senhaCorreta = bcrypt.compareSync(senha, usuario.senha);
+    if (!senhaCorreta) {
+      return res.status(401).json({ error: "Senha incorreta." });
+    }
+
+    res.json({
+      message: "Login realizado com sucesso!",
+      usuario: {
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email,
+      },
+    });
+  });
+});
+
+// 🔹 Middleware de autenticação simples
+function autenticarUsuario(req, res, next) {
+  const { usuarioId } = req.body; // pode vir no body
+  if (!usuarioId) {
+    return res.status(401).json({ error: "Usuário não autenticado." });
+  }
+
+  db.get("SELECT * FROM usuarios WHERE id = ?", [usuarioId], (err, usuario) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!usuario)
+      return res.status(401).json({ error: "Usuário não encontrado." });
+
+    req.usuario = usuario; // usuário autenticado disponível na requisição
+    next();
+  });
+}
+
+// 🔹===================== RECEITAS =====================
+
 app.get("/receitas", (req, res) => {
   const { nome, ingredientes } = req.query;
 
@@ -28,7 +96,6 @@ app.get("/receitas", (req, res) => {
       return res.status(500).json({ erro: err.message });
     }
 
-    // parse das receitas e aplicação de filtros
     const parsed = rows.map((r) => {
       let ingredientesArr = [];
       try {
@@ -45,20 +112,17 @@ app.get("/receitas", (req, res) => {
       };
     });
 
-    // aplicar filtro por nome (se presente)
     let filtered = parsed;
     if (typeof nome === "string" && nome.trim() !== "") {
       const q = nome.trim().toLowerCase();
-      filtered = filtered.filter((r) => (r.nome || "").toLowerCase().includes(q));
+      filtered = filtered.filter((r) =>
+        (r.nome || "").toLowerCase().includes(q)
+      );
     }
 
-    // aplicar filtro por ingredientes (se presente) — AND: todos os termos devem existir
-    // ingredientes query pode ser "ovo,farinha" ou "ovo" (string). suportamos array também se for form-data.
     if (ingredientes) {
-      // normalizar entrada em array de termos
       let terms = [];
       if (Array.isArray(ingredientes)) {
-        // ?ingredientes=a&ingredientes=b  (unlikely but handle)
         terms = ingredientes.flatMap((t) => String(t).split(","));
       } else {
         terms = String(ingredientes).split(",");
@@ -67,11 +131,9 @@ app.get("/receitas", (req, res) => {
 
       if (terms.length) {
         filtered = filtered.filter((r) => {
-          // lowercased ingredient strings from recipe
           const lowerIngredients = (r.ingredientes || []).map((ing) =>
             String(ing?.ingrediente || "").toLowerCase()
           );
-          // todos os termos devem ser substrings de pelo menos um ingrediente
           return terms.every((term) =>
             lowerIngredients.some((li) => li.includes(term))
           );
@@ -79,16 +141,10 @@ app.get("/receitas", (req, res) => {
       }
     }
 
-    // Retornamos 200 com array (vazio se nada encontrado)
     return res.json(filtered);
   });
 });
 
-/**
- * POST /receitas/search
- * body: { nome?: string, ingredientes?: string[] }
- * Alternativa para queries longas / arrays via body.
- */
 app.post("/receitas/search", (req, res) => {
   const { nome, ingredientes } = req.body;
 
@@ -118,11 +174,15 @@ app.post("/receitas/search", (req, res) => {
 
     if (typeof nome === "string" && nome.trim() !== "") {
       const q = nome.trim().toLowerCase();
-      filtered = filtered.filter((r) => (r.nome || "").toLowerCase().includes(q));
+      filtered = filtered.filter((r) =>
+        (r.nome || "").toLowerCase().includes(q)
+      );
     }
 
     if (Array.isArray(ingredientes) && ingredientes.length) {
-      const terms = ingredientes.map((t) => String(t).trim().toLowerCase()).filter(Boolean);
+      const terms = ingredientes
+        .map((t) => String(t).trim().toLowerCase())
+        .filter(Boolean);
       if (terms.length) {
         filtered = filtered.filter((r) => {
           const lowerIngredients = (r.ingredientes || []).map((ing) =>
@@ -139,7 +199,6 @@ app.post("/receitas/search", (req, res) => {
   });
 });
 
-// Buscar receitas por NOME
 app.get("/receitas/nome/:nome", (req, res) => {
   const { nome } = req.params;
   db.all(
@@ -163,14 +222,12 @@ app.get("/receitas/nome/:nome", (req, res) => {
   );
 });
 
-// Buscar receitas por INGREDIENTE
 app.get("/receitas/ingrediente/:ingrediente", (req, res) => {
   const { ingrediente } = req.params;
 
   db.all("SELECT * FROM receitas", [], (err, rows) => {
     if (err) return res.status(500).json({ erro: err.message });
 
-    // Filtrar receitas que contenham o ingrediente
     const filtradas = rows.filter((r) => {
       const ingredientes = JSON.parse(r.ingredientes);
       return ingredientes.some((i) =>
@@ -195,7 +252,6 @@ app.get("/receitas/ingrediente/:ingrediente", (req, res) => {
   });
 });
 
-// Buscar receita por ID
 app.get("/receitas/id/:id", (req, res) => {
   const { id } = req.params;
   db.get("SELECT * FROM receitas WHERE id = ?", [id], (err, row) => {
@@ -215,8 +271,8 @@ app.get("/receitas/id/:id", (req, res) => {
   });
 });
 
-// Inserir nova receita (opcional)
-app.post("/receitas", (req, res) => {
+// 🔹 Inserir nova receita (só usuário logado)
+app.post("/receitas", autenticarUsuario, (req, res) => {
   const { nome, imagem, modo_preparo, ingredientes } = req.body;
 
   if (!nome || !ingredientes)
@@ -229,7 +285,9 @@ app.post("/receitas", (req, res) => {
     [nome, imagem || "", modo_preparo || "", JSON.stringify(ingredientes)],
     function (err) {
       if (err) return res.status(500).json({ erro: err.message });
-      res.status(201).json({ id: this.lastID, mensagem: "Receita adicionada!" });
+      res
+        .status(201)
+        .json({ id: this.lastID, mensagem: "Receita adicionada!" });
     }
   );
 });
