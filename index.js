@@ -1,44 +1,55 @@
 const express = require("express");
 const cors = require("cors");
-const bcrypt = require("bcryptjs"); // 🔹 para criptografar senhas
-const db = require("./db"); // sua conexão sqlite (db.js)
-const app = express();
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const db = require("./db");
 
+const app = express();
 app.use(cors());
 app.use(express.json());
 
+const JWT_SECRET = "segredo_super_secreto"; // ⚠️ troque por uma env var
+
 app.get("/", (req, res) => {
-  res.send("API de Receitas Culinárias - by Davi 🍲");
+  res.send("🍲 API de Receitas Culinárias - com autenticação JWT");
 });
 
-// 🔹===================== AUTENTICAÇÃO =====================
 
-// Cadastro de usuário
+// ===================== 🧩 AUTENTICAÇÃO =====================
+
+// Cadastro
 app.post("/register", (req, res) => {
   const { nome, email, senha } = req.body;
-
   if (!nome || !email || !senha) {
     return res.status(400).json({ error: "Preencha todos os campos." });
   }
 
-  // Criptografar a senha
   const senhaCriptografada = bcrypt.hashSync(senha, 10);
 
-  const sql = `INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)`;
-  db.run(sql, [nome, email, senhaCriptografada], function (err) {
-    if (err) {
-      if (err.message.includes("UNIQUE")) {
-        return res.status(400).json({ error: "E-mail já cadastrado." });
+  db.run(
+    `INSERT INTO usuarios (nome, email, senha) VALUES (?, ?, ?)`,
+    [nome, email, senhaCriptografada],
+    function (err) {
+      if (err) {
+        if (err.message.includes("UNIQUE"))
+          return res.status(400).json({ error: "E-mail já cadastrado." });
+        return res.status(500).json({ error: err.message });
       }
-      return res.status(500).json({ error: err.message });
+
+      const token = jwt.sign({ id: this.lastID, nome, email }, JWT_SECRET, {
+        expiresIn: "7d",
+      });
+
+      res.status(201).json({
+        message: "Usuário cadastrado com sucesso!",
+        usuario: { id: this.lastID, nome, email },
+        token,
+      });
     }
-    res
-      .status(201)
-      .json({ message: "Usuário cadastrado com sucesso!", id: this.lastID });
-  });
+  );
 });
 
-// Login de usuário
+// Login
 app.post("/login", (req, res) => {
   const { email, senha } = req.body;
 
@@ -46,214 +57,121 @@ app.post("/login", (req, res) => {
     return res.status(400).json({ error: "Preencha e-mail e senha." });
   }
 
-  const sql = `SELECT * FROM usuarios WHERE email = ?`;
-  db.get(sql, [email], (err, usuario) => {
+  db.get(`SELECT * FROM usuarios WHERE email = ?`, [email], (err, usuario) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!usuario)
       return res.status(401).json({ error: "Usuário não encontrado." });
 
     const senhaCorreta = bcrypt.compareSync(senha, usuario.senha);
-    if (!senhaCorreta) {
+    if (!senhaCorreta)
       return res.status(401).json({ error: "Senha incorreta." });
-    }
+
+    const token = jwt.sign(
+      { id: usuario.id, nome: usuario.nome, email: usuario.email },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
     res.json({
       message: "Login realizado com sucesso!",
-      usuario: {
-        id: usuario.id,
-        nome: usuario.nome,
-        email: usuario.email,
-      },
+      usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email },
+      token,
     });
   });
 });
 
-// 🔹 Middleware de autenticação simples
+
+// ===================== 🧱 MIDDLEWARE JWT =====================
+
 function autenticarUsuario(req, res, next) {
-  const { usuarioId } = req.body; // pode vir no body
-  if (!usuarioId) {
-    return res.status(401).json({ error: "Usuário não autenticado." });
-  }
+  const authHeader = req.headers.authorization;
+  if (!authHeader)
+    return res.status(401).json({ error: "Token não fornecido." });
 
-  db.get("SELECT * FROM usuarios WHERE id = ?", [usuarioId], (err, usuario) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!usuario)
-      return res.status(401).json({ error: "Usuário não encontrado." });
+  const [, token] = authHeader.split(" ");
+  if (!token) return res.status(401).json({ error: "Token inválido." });
 
-    req.usuario = usuario; // usuário autenticado disponível na requisição
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.usuario = decoded;
     next();
-  });
+  } catch {
+    return res.status(401).json({ error: "Token expirado ou inválido." });
+  }
 }
 
-// 🔹===================== RECEITAS =====================
 
+// ===================== 🍳 RECEITAS =====================
+
+// Listar todas
 app.get("/receitas", (req, res) => {
-  const { nome, ingredientes } = req.query;
+  try {
+    const { nome, ingredientes } = req.query;
 
-  db.all("SELECT * FROM receitas", [], (err, rows) => {
-    if (err) {
-      console.error("Erro ao buscar receitas:", err);
-      return res.status(500).json({ erro: err.message });
-    }
-
-    const parsed = rows.map((r) => {
-      let ingredientesArr = [];
-      try {
-        ingredientesArr = r.ingredientes ? JSON.parse(r.ingredientes) : [];
-      } catch (e) {
-        ingredientesArr = [];
-      }
-      return {
-        id: r.id,
-        nome: r.nome,
-        imagem: r.imagem,
-        modo_preparo: r.modo_preparo,
-        ingredientes: ingredientesArr,
-      };
-    });
-
-    let filtered = parsed;
-    if (typeof nome === "string" && nome.trim() !== "") {
-      const q = nome.trim().toLowerCase();
-      filtered = filtered.filter((r) =>
-        (r.nome || "").toLowerCase().includes(q)
-      );
-    }
-
+    // Normaliza ingredients: pode vir como "a,b" ou como array
+    let terms = [];
     if (ingredientes) {
-      let terms = [];
       if (Array.isArray(ingredientes)) {
         terms = ingredientes.flatMap((t) => String(t).split(","));
       } else {
         terms = String(ingredientes).split(",");
       }
       terms = terms.map((t) => t.trim().toLowerCase()).filter(Boolean);
-
-      if (terms.length) {
-        filtered = filtered.filter((r) => {
-          const lowerIngredients = (r.ingredientes || []).map((ing) =>
-            String(ing?.ingrediente || "").toLowerCase()
-          );
-          return terms.every((term) =>
-            lowerIngredients.some((li) => li.includes(term))
-          );
-        });
-      }
     }
 
-    return res.json(filtered);
-  });
-});
+    // Monta SQL dinâmico com WHERE conforme os filtros
+    const where = [];
+    const params = [];
 
-app.post("/receitas/search", (req, res) => {
-  const { nome, ingredientes } = req.body;
-
-  db.all("SELECT * FROM receitas", [], (err, rows) => {
-    if (err) {
-      console.error("Erro ao buscar receitas (search):", err);
-      return res.status(500).json({ erro: err.message });
+    if (nome && String(nome).trim().length) {
+      where.push("lower(nome) LIKE ?");
+      params.push(`%${String(nome).trim().toLowerCase()}%`);
     }
 
-    const parsed = rows.map((r) => {
-      let ingredientesArr = [];
-      try {
-        ingredientesArr = r.ingredientes ? JSON.parse(r.ingredientes) : [];
-      } catch (e) {
-        ingredientesArr = [];
-      }
-      return {
-        id: r.id,
-        nome: r.nome,
-        imagem: r.imagem,
-        modo_preparo: r.modo_preparo,
-        ingredientes: ingredientesArr,
-      };
+    // Para cada termo de ingrediente adicionamos um LIKE sobre o campo ingredientes (JSON string)
+    // Usamos lower() para comparações case-insensitive
+    terms.forEach((term) => {
+      where.push("lower(ingredientes) LIKE ?");
+      params.push(`%${term}%`);
     });
 
-    let filtered = parsed;
+    const sql = `SELECT * FROM receitas${where.length ? " WHERE " + where.join(" AND ") : ""} ORDER BY id DESC`;
 
-    if (typeof nome === "string" && nome.trim() !== "") {
-      const q = nome.trim().toLowerCase();
-      filtered = filtered.filter((r) =>
-        (r.nome || "").toLowerCase().includes(q)
-      );
-    }
-
-    if (Array.isArray(ingredientes) && ingredientes.length) {
-      const terms = ingredientes
-        .map((t) => String(t).trim().toLowerCase())
-        .filter(Boolean);
-      if (terms.length) {
-        filtered = filtered.filter((r) => {
-          const lowerIngredients = (r.ingredientes || []).map((ing) =>
-            String(ing?.ingrediente || "").toLowerCase()
-          );
-          return terms.every((term) =>
-            lowerIngredients.some((li) => li.includes(term))
-          );
-        });
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        console.error("Erro ao buscar receitas:", err);
+        return res.status(500).json({ erro: err.message });
       }
-    }
 
-    return res.json(filtered);
-  });
-});
+      const receitas = rows.map((r) => {
+        let ingredientesArr = [];
+        try {
+          ingredientesArr = r.ingredientes ? JSON.parse(r.ingredientes) : [];
+        } catch (e) {
+          ingredientesArr = [];
+        }
+        return {
+          id: r.id,
+          nome: r.nome,
+          imagem: r.imagem,
+          modo_preparo: r.modo_preparo,
+          ingredientes: ingredientesArr,
+          usuario_id: r.usuario_id,
+        };
+      });
 
-app.get("/receitas/nome/:nome", (req, res) => {
-  const { nome } = req.params;
-  db.all(
-    "SELECT * FROM receitas WHERE nome LIKE ?",
-    [`%${nome}%`],
-    (err, rows) => {
-      if (err) return res.status(500).json({ erro: err.message });
-      if (!rows.length)
-        return res.status(404).json({ mensagem: "Receita não encontrada" });
-
-      const receitas = rows.map((r) => ({
-        id: r.id,
-        nome: r.nome,
-        imagem: r.imagem,
-        modo_preparo: r.modo_preparo,
-        ingredientes: JSON.parse(r.ingredientes),
-      }));
-
-      res.json(receitas);
-    }
-  );
-});
-
-app.get("/receitas/ingrediente/:ingrediente", (req, res) => {
-  const { ingrediente } = req.params;
-
-  db.all("SELECT * FROM receitas", [], (err, rows) => {
-    if (err) return res.status(500).json({ erro: err.message });
-
-    const filtradas = rows.filter((r) => {
-      const ingredientes = JSON.parse(r.ingredientes);
-      return ingredientes.some((i) =>
-        i.ingrediente.toLowerCase().includes(ingrediente.toLowerCase())
-      );
+      return res.json(receitas);
     });
-
-    if (!filtradas.length)
-      return res
-        .status(404)
-        .json({ mensagem: "Nenhuma receita encontrada com esse ingrediente" });
-
-    const receitas = filtradas.map((r) => ({
-      id: r.id,
-      nome: r.nome,
-      imagem: r.imagem,
-      ingredientes: JSON.parse(r.ingredientes),
-      modo_preparo: r.modo_preparo,
-    }));
-
-    res.json(receitas);
-  });
+  } catch (e) {
+    console.error("GET /receitas error:", e);
+    return res.status(500).json({ erro: "Erro interno" });
+  }
 });
 
-app.get("/receitas/id/:id", (req, res) => {
+// Obter por ID
+app.get("/receitas/:id", (req, res) => {
   const { id } = req.params;
+
   db.get("SELECT * FROM receitas WHERE id = ?", [id], (err, row) => {
     if (err) return res.status(500).json({ erro: err.message });
     if (!row)
@@ -264,109 +182,120 @@ app.get("/receitas/id/:id", (req, res) => {
       nome: row.nome,
       imagem: row.imagem,
       modo_preparo: row.modo_preparo,
-      ingredientes: JSON.parse(row.ingredientes),
+      ingredientes: JSON.parse(row.ingredientes || "[]"),
+      usuario_id: row.usuario_id,
     };
 
     res.json(receita);
   });
 });
 
-// 🔹 Inserir nova receita (só usuário logado)
+// Criar (apenas logado)
 app.post("/receitas", autenticarUsuario, (req, res) => {
-  const { nome, imagem, modo_preparo, ingredientes } = req.body;
+  console.log("POST /receitas - user:", req.usuario);
+  console.log("body:", req.body);
 
-  if (!nome || !ingredientes)
+  const { nome, imagem, modo_preparo, ingredientes } = req.body;
+  const usuarioId = req.usuario.id;
+
+  if (!nome || !Array.isArray(ingredientes) || !ingredientes.length) {
     return res
       .status(400)
-      .json({ mensagem: "Nome e ingredientes são obrigatórios" });
+      .json({ mensagem: "Nome e ingredientes são obrigatórios." });
+  }
 
   db.run(
-    "INSERT INTO receitas (nome, imagem, modo_preparo, ingredientes) VALUES (?, ?, ?, ?)",
-    [nome, imagem || "", modo_preparo || "", JSON.stringify(ingredientes)],
+    "INSERT INTO receitas (nome, imagem, modo_preparo, ingredientes, usuario_id) VALUES (?, ?, ?, ?, ?)",
+    [nome, imagem || "", modo_preparo || "", JSON.stringify(ingredientes), usuarioId],
     function (err) {
-      if (err) return res.status(500).json({ erro: err.message });
+      if (err) {
+        console.error("Erro ao inserir receita:", err.stack ?? err);
+        return res.status(500).json({ erro: err.message });
+      }
+
       res
         .status(201)
-        .json({ id: this.lastID, mensagem: "Receita adicionada!" });
+        .json({ id: this.lastID, mensagem: "Receita criada com sucesso!" });
     }
   );
 });
 
-app.delete("/receitas/:id", (req, res) => {
-  const { id } = req.params;
-
-  db.run("DELETE FROM receitas WHERE id = ?", [id], function (err) {
-    if (err) {
-      console.error("Erro ao deletar receita:", err);
-      return res.status(500).json({ erro: err.message });
-    }
-
-    if (this.changes === 0) {
-      return res
-        .status(404)
-        .json({ mensagem: "Receita não encontrada para exclusão" });
-    }
-
-    res.json({ mensagem: "Receita deletada com sucesso!" });
-  });
-});
-
-app.put("/receitas/:id", (req, res) => {
+// Atualizar (somente o criador)
+app.put("/receitas/:id", autenticarUsuario, (req, res) => {
   const { id } = req.params;
   const { nome, imagem, modo_preparo, ingredientes } = req.body;
+  const usuarioId = req.usuario.id;
 
-  if (!nome || !ingredientes) {
-    return res.status(400).json({ mensagem: "Nome e ingredientes são obrigatórios" });
-  }
+  db.get("SELECT * FROM receitas WHERE id = ?", [id], (err, receita) => {
+    if (err) return res.status(500).json({ erro: err.message });
+    if (!receita) return res.status(404).json({ mensagem: "Receita não encontrada." });
+    if (receita.usuario_id !== usuarioId)
+      return res.status(403).json({ erro: "Você não pode editar esta receita." });
 
-  // garante que ingredientes seja um array serializável
-  let ingredientesJson = "[]";
-  try {
-    ingredientesJson = JSON.stringify(ingredientes);
-  } catch (e) {
-    return res.status(400).json({ mensagem: "Ingredientes inválidos" });
-  }
-
-  const sql =
-    "UPDATE receitas SET nome = ?, imagem = ?, modo_preparo = ?, ingredientes = ? WHERE id = ?";
-
-  db.run(sql, [nome, imagem || "", modo_preparo || "", ingredientesJson, id], function (err) {
-    if (err) {
-      console.error("Erro ao atualizar receita:", err);
-      return res.status(500).json({ erro: err.message });
-    }
-
-    if (this.changes === 0) {
-      return res.status(404).json({ mensagem: "Receita não encontrada" });
-    }
-
-    // buscar e retornar a receita atualizada
-    db.get("SELECT * FROM receitas WHERE id = ?", [id], (err2, row) => {
+    const sql = `UPDATE receitas SET nome = ?, imagem = ?, modo_preparo = ?, ingredientes = ? WHERE id = ?`;
+    db.run(sql, [nome, imagem || "", modo_preparo || "", JSON.stringify(ingredientes), id], function (err2) {
       if (err2) return res.status(500).json({ erro: err2.message });
-      if (!row) return res.status(404).json({ mensagem: "Receita não encontrada" });
 
-      let ingredientesArr = [];
-      try {
-        ingredientesArr = row.ingredientes ? JSON.parse(row.ingredientes) : [];
-      } catch (e) {
-        ingredientesArr = [];
-      }
-
-      const receita = {
-        id: row.id,
-        nome: row.nome,
-        imagem: row.imagem,
-        modo_preparo: row.modo_preparo,
-        ingredientes: ingredientesArr,
-      };
-
-      return res.json(receita);
+      res.json({ mensagem: "Receita atualizada com sucesso!" });
     });
   });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 API rodando na porta ${PORT}`);
+// Deletar (somente o criador)
+app.delete("/receitas/:id", autenticarUsuario, (req, res) => {
+  const { id } = req.params;
+  const usuarioId = req.usuario.id;
+
+  db.get("SELECT * FROM receitas WHERE id = ?", [id], (err, receita) => {
+    if (err) return res.status(500).json({ erro: err.message });
+    if (!receita)
+      return res.status(404).json({ mensagem: "Receita não encontrada." });
+
+    if (receita.usuario_id !== usuarioId)
+      return res.status(403).json({ erro: "Você não pode deletar esta receita." });
+
+    db.run("DELETE FROM receitas WHERE id = ?", [id], function (err2) {
+      if (err2) return res.status(500).json({ erro: err2.message });
+      res.json({ mensagem: "Receita excluída com sucesso!" });
+    });
+  });
 });
 
+app.get("/minhas-receitas", autenticarUsuario, (req, res) => {
+  const usuarioId = req.usuario.id;
+  const { nome, ingrediente } = req.query; // filtros opcionais
+
+  let sql = "SELECT * FROM receitas WHERE usuario_id = ?";
+  const params = [usuarioId];
+
+  // 🔍 filtros opcionais
+  if (nome) {
+    sql += " AND nome LIKE ?";
+    params.push(`%${nome}%`);
+  }
+
+  if (ingrediente) {
+    sql += " AND ingredientes LIKE ?";
+    params.push(`%${ingrediente}%`);
+  }
+
+  db.all(sql, params, (err, rows) => {
+    if (err) return res.status(500).json({ erro: err.message });
+
+    const receitas = rows.map((r) => ({
+      id: r.id,
+      nome: r.nome,
+      imagem: r.imagem,
+      modo_preparo: r.modo_preparo,
+      ingredientes: JSON.parse(r.ingredientes || "[]"),
+      usuario_id: r.usuario_id,
+    }));
+
+    res.json(receitas);
+  });
+});
+
+
+// ===================== 🚀 SERVIDOR =====================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`✅ API rodando na porta ${PORT}`));
