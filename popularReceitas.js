@@ -26,7 +26,7 @@ const receitas = [
   },
   {
     nome: "Omelete",
-    imagem: "https://www.themealdb.com/images/media/meals/0wryxq1560452256.jpg",
+    imagem: "https://static.itdg.com.br/images/360-240/8542e00db2cd0f6761670765607e6255/shutterstock-2048280131-1-.jpg",
     modo_preparo: "Bata os ovos, adicione temperos e frite em frigideira.",
     ingredientes: [
       { ingrediente: "Ovos", medida: "2 unidades" },
@@ -208,7 +208,7 @@ const receitas = [
   {
     nome: "Empadão de Frango",
     imagem:
-      "https://static.itdg.com.br/images/360-240/8542e00db2cd0f6761670765607e6255/shutterstock-2048280131-…",
+      "https://static.itdg.com.br/images/360-240/8542e00db2cd0f6761670765607e6255/shutterstock-2048280131-1-.jpg",
     modo_preparo:
       "Prepare a massa, forre a forma, adicione o recheio de frango e cubra com o restante da massa. Asse até dourar.",
     ingredientes: [
@@ -304,7 +304,7 @@ const receitas = [
   {
     nome: "Tutu de Feijão",
     imagem:
-      "https://www.estadao.com.br/resizer/v2/7BJ7FGF7FJNTVNEW4ZLFORY4IE.jpg?quality=80&auth=040999597a…",
+      "https://www.estadao.com.br/resizer/v2/7BJ7FGF7FJNTVNEW4ZLFORY4IE.jpg?quality=80&auth=040999597a7dfa729c0f0d5daa70758ef88d8bf0f177120e80d886863b27aa6f&width=720&height=410&focal=619,232",
     modo_preparo:
       "Refogue alho, cebola e bacon, adicione feijão batido e farinha de mandioca até engrossar.",
     ingredientes: [
@@ -318,7 +318,7 @@ const receitas = [
   {
     nome: "Arroz Carreteiro",
     imagem:
-      "https://www.receitasnestle.com.br/sites/default/files/srh_recipes/f4322f4b99edd0f839d72ddf8908df79.…",
+      "https://www.receitasnestle.com.br/sites/default/files/srh_recipes/f4322f4b99edd0f839d72ddf8908df79.jpg",
     modo_preparo:
       "Refogue carne seca com alho e cebola, adicione arroz e cozinhe até ficar soltinho.",
     ingredientes: [
@@ -374,7 +374,7 @@ const receitas = [
   {
     nome: "Pudim de Leite Condensado",
     imagem:
-      "https://static.itdg.com.br/images/360-240/d1307a2e17cda187df76b78cfd3ac464/shutterstock-2322251819-…",
+      "https://www.receitasnestle.com.br/sites/default/files/srh_recipes/e33f558634f17b8197bd2ad4061cdaff.jpg",
     modo_preparo:
       "Bata tudo no liquidificador, despeje em forma caramelizada e asse em banho-maria por 1 hora.",
     ingredientes: [
@@ -387,7 +387,7 @@ const receitas = [
   {
     nome: "Carne de Panela com Batata",
     imagem:
-      "https://s2-receitas.glbimg.com/Sekdv7EdPfw90fD-CiGEhXfhTjw=/0x0:1280x800/984x0/smart/filters:strip_…",
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSjE7rmimHGD8Pt5YZg8pOZ547FRMCALrzjCg&s",
     modo_preparo:
       "Refogue a carne com alho e cebola, adicione água e cozinhe até ficar macia. Acrescente as batatas e finalize o cozimento.",
     ingredientes: [
@@ -429,7 +429,7 @@ const receitas = [
   {
     nome: "Mousse de Maracujá",
     imagem:
-      "https://static.itdg.com.br/images/360-240/8fed8f60d3c8e3990396e2478cbc7f2a/shutterstock-1905617575-…",
+      "https://static.itdg.com.br/images/360-240/8fed8f60d3c8e3990396e2478cbc7f2a/shutterstock-1905617575-1-.jpg",
     modo_preparo:
       "Bata todos os ingredientes no liquidificador até obter um creme homogêneo. Leve à geladeira por 2 horas.",
     ingredientes: [
@@ -547,7 +547,7 @@ const receitas = [
   {
     nome: "Lasanha à Bolonhesa",
     imagem:
-      "https://static.itdg.com.br/images/360-240/ec2a5e38702c60bf1ace0b5f1c8e9415/shutterstock-739787011.j…",
+      "https://guiadacozinha.com.br/wp-content/uploads/2014/01/lasanha-bolonhesa-na-pressao.jpg",
     modo_preparo:
       "Monte camadas de massa, molho bolonhesa e queijo. Leve ao forno até gratinar.",
     ingredientes: [
@@ -588,7 +588,7 @@ const receitas = [
   {
     nome: "Yakisoba",
     imagem:
-      "https://www.lecreuset.com.br/dw/image/v2/BDRT_PRD/on/demandware.static/-/Sites-le-creuset-br-master…",
+      "https://acarnequeomundoprefere.com.br/uploads/media/image/frimesa-receitas-yakisoba-de-coxao-mole-3.jpg",
     modo_preparo:
       "Refogue macarrão com legumes variados e frango ou carne, tempere com molho shoyu e sirva quente.",
     ingredientes: [
@@ -616,7 +616,7 @@ const receitas = [
   {
     nome: "Sushi Simples",
     imagem:
-      "https://www.diadepeixe.com.br/extranet/thumbnail/crop/550x360/Receita/shutterstock_2105735288_17464…",
+      "https://www.sabornamesa.com.br/media/k2/items/cache/5031e263a4a258791d6306b2d3d9dbf6_L.jpg",
     modo_preparo:
       "Monte rolinhos de arroz com alga e recheio de peixe ou legumes, corte e sirva com shoyu.",
     ingredientes: [
@@ -670,7 +670,7 @@ const receitas = [
   {
     nome: "Brownie",
     imagem:
-      "https://static.itdg.com.br/images/1200-630/0191a4f23349e54e618a65f2051d68a8/shutterstock-1915577575…",
+      "https://moinhoglobo.com.br/wp-content/uploads/2016/02/51-Brownie-scaled.jpg",
     modo_preparo:
       "Misture os ingredientes, despeje em forma untada e asse por 25-30 minutos. Sirva em pedaços.",
     ingredientes: [
@@ -684,7 +684,7 @@ const receitas = [
   {
     nome: "Cheesecake",
     imagem:
-      "https://static.itdg.com.br/images/360-240/722816207b46644920ab0c65a7faab72/shutterstock-2202992931.…",
+      "https://s04.video.glbimg.com/x720/13215319.jpg",
     modo_preparo:
       "Misture a base, pressione na forma, prepare o recheio e asse. Deixe gelar antes de servir.",
     ingredientes: [
@@ -726,7 +726,7 @@ const receitas = [
   {
     nome: "Pavê de Chocolate",
     imagem:
-      "https://static.itdg.com.br/images/360-240/543ffeb02eaaa8dfe47ab5042b65a908/253792-354452-original-1…",
+      "https://s2-receitas.glbimg.com/n7d-Ule7CHsHSBvQyF9KhMEmkU8=/0x0:1280x800/984x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_1f540e0b94d8437dbbc39d567a1dee68/internal_photos/bs/2022/J/H/uBe51BRMiAgskpDJXKcg/pave-de-chocolate.jpg",
     modo_preparo:
       "Alterne camadas de biscoito e creme de chocolate. Leve à geladeira por 4 horas antes de servir.",
     ingredientes: [
@@ -762,7 +762,7 @@ const receitas = [
   {
     nome: "Pudim de Leite",
     imagem:
-      "https://static.itdg.com.br/images/640-440/d1307a2e17cda187df76b78cfd3ac464/shutterstock-2322251819-…",
+      "https://s2-receitas.glbimg.com/jK-kMTPr3Yzex9P93zqt4DSsFXo=/0x0:1366x768/984x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_1f540e0b94d8437dbbc39d567a1dee68/internal_photos/bs/2023/z/0/RsipkzTEu0Y1PGiavCpA/pudim-de-leite-condensado.jpg",
     modo_preparo:
       "Misture os ingredientes, despeje em forma caramelizada e asse em banho-maria. Deixe gelar antes de desenformar.",
     ingredientes: [
@@ -802,22 +802,52 @@ const receitas = [
   },
 ];
 
+
 // Função para inserir receita se ainda não existir
 receitas.forEach((r) => {
   db.get("SELECT * FROM receitas WHERE nome = ?", [r.nome], (err, row) => {
     if (err) {
-      console.error("Erro ao verificar receita:", err.message);
-    } else if (row) {
-      console.log(`⚠️ Receita '${r.nome}' já existe. Pulando...`);
-    } else {
+      console.error("Erro ao buscar receita:", err.message);
+      return;
+    }
+
+    if (row) {
+      // Atualiza caso já exista
       db.run(
-        `INSERT INTO receitas (nome, imagem, modo_preparo, ingredientes) VALUES (?, ?, ?, ?)`,
-        [r.nome, r.imagem, r.modo_preparo, JSON.stringify(r.ingredientes)],
+        "UPDATE receitas SET imagem = ?, modo_preparo = ? WHERE nome = ?",
+        [r.imagem, r.modo_preparo, r.nome],
         (err) => {
-          if (err) console.error("Erro ao inserir receita:", err.message);
-          else console.log(`✅ Receita '${r.nome}' adicionada!`);
+          if (err) {
+            console.error(`❌ Erro ao atualizar '${r.nome}':`, err.message);
+          } else {
+            console.log(`🔄 Receita '${r.nome}' atualizada com sucesso.`);
+          }
+        }
+      );
+    } else {
+      // Insere nova receita
+      db.run(
+        "INSERT INTO receitas (nome, imagem, modo_preparo) VALUES (?, ?, ?)",
+        [r.nome, r.imagem, r.modo_preparo],
+        function (err) {
+          if (err) {
+            console.error(`❌ Erro ao inserir '${r.nome}':`, err.message);
+            return;
+          }
+          const receitaId = this.lastID;
+
+          // Insere os ingredientes
+          r.ingredientes.forEach((ing) => {
+            db.run(
+              "INSERT INTO ingredientes (receita_id, ingrediente, medida) VALUES (?, ?, ?)",
+              [receitaId, ing.ingrediente, ing.medida]
+            );
+          });
+
+          console.log(`✅ Receita '${r.nome}' inserida com sucesso!`);
         }
       );
     }
   });
 });
+
